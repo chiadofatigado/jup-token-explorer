@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://jup.ag/favicon-96x96.png">
+    <title>Token Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto p-4 bg-white shadow-md rounded-md">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Jupiter Token Explorer</h1>
+
+        <!-- Tag Select Section -->
+        <div class="tag-select text-center mb-6">
+            <div class="flex flex-wrap justify-center space-x-2">
+                <!-- Tag Buttons -->
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="verified">Verified</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="unknown">Unknown</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="community">Community</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="strict">Strict</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="lst">LST</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="birdeye-trending">Birdeye Trending</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="clone">Clone</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="pump">Pump</button>
+                <button class="tag-button bg-green-200 hover:bg-green-300 text-gray-800 font-medium py-2 px-4 rounded transition" data-tag="token-2022">Token 2022</button>
+            </div>
+            <button onclick="fetchTokens()" class="mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded transition">Fetch Tokens</button>
+        </div>
+
+        <!-- Table Wrapper -->
+        <div class="table-wrapper overflow-x-auto">
+            <div id="token-results"></div>
+        </div>
+
+        <!-- Pagination and Rows Selector -->
+        <div class="pagination text-center mt-4" id="pagination"></div>
+        
+        <div class="rows-selector text-center mt-4">
+            <label for="rowsPerPage" class="text-gray-700">Rows per page:</label>
+            <select id="rowsPerPage" onchange="changeRowsPerPage()" class="ml-2 p-2 border border-gray-300 rounded">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+            </select>
+        </div>
+
+        <!-- Total Tokens and Error Message -->
+        <div class="total-tokens text-center font-bold mt-4 text-gray-800" id="total-tokens"></div>
+        <div class="error-message text-center text-red-500 mt-4" id="error-message"></div>
+    </div>
+
+    <script>
+        let allTokens = [];
+        let currentPage = 1;
+        let rowsPerPage = 100;
+
+        // Function to handle tag button click
+        document.querySelectorAll('.tag-button').forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.toggle('bg-green-600');
+                this.classList.toggle('text-white');
+            });
+        });
+
+        function fetchTokens() {
+            const selectedTags = Array.from(document.querySelectorAll('.tag-button.bg-green-600'))
+                .map(button => button.getAttribute('data-tag'))
+                .join(',');
+
+            if (selectedTags.length === 0) {
+                alert("Please select at least one tag.");
+                return;
+            }
+
+            const url = `https://tokens.jup.ag/tokens?tags=${selectedTags}`;
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    allTokens = data; // Store the complete data
+                    console.log('Data received:', data); // Debug: log the response data
+                    currentPage = 1; // Reset to the first page
+                    updateTable(); // Display tokens for the first page
+                    updatePagination(); // Update pagination
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('error-message').textContent = 'Error fetching data. Please try again later.';
+                });
+        }
+
+        function updateTable() {
+            const tokenResults = document.getElementById('token-results');
+            tokenResults.innerHTML = ''; // Clear previous results
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const tokensToDisplay = allTokens.slice(start, end);
+
+            if (tokensToDisplay.length === 0) {
+                tokenResults.innerHTML = '<p class="text-center text-gray-700">No tokens found for the selected tags.</p>';
+                return;
+            }
+
+            let table = `
+                <table class="min-w-full bg-white border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="px-4 py-2 border-b">#</th>
+                            <th class="px-4 py-2 border-b">Logo</th>
+                            <th class="px-4 py-2 border-b">Name</th>
+                            <th class="px-4 py-2 border-b">Symbol</th>
+                            <th class="px-4 py-2 border-b">Address</th>
+                            <th class="px-4 py-2 border-b">Tags</th>
+                            <th class="px-4 py-2 border-b">Daily Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            tokensToDisplay.forEach((token, index) => {
+                table += `
+                    <tr class="hover:bg-gray-100">
+                        <td class="px-4 py-2 border-b text-center">${start + index + 1}</td>
+                        <td class="px-4 py-2 border-b text-center"><img src="${token.logoURI || ''}" alt="${token.name} logo" class="token-logo w-8 h-8"></td>
+                        <td class="px-4 py-2 border-b text-center">${token.name || 'N/A'}</td>
+                        <td class="px-4 py-2 border-b text-center">${token.symbol || 'N/A'}</td>
+                        <td class="px-4 py-2 border-b text-center">${token.address || 'N/A'}</td>
+                        <td class="px-4 py-2 border-b text-center">${token.tags ? token.tags.join(', ') : 'N/A'}</td>
+                        <td class="px-4 py-2 border-b text-center">${token.daily_volume ? token.daily_volume.toFixed(2) : 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            table += '</tbody></table>';
+            tokenResults.innerHTML = table;
+
+            // Update total number of tokens
+            document.getElementById('total-tokens').textContent = `Total Tokens: ${allTokens.length}`;
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = ''; // Clear previous pagination
+
+            const totalPages = Math.ceil(allTokens.length / rowsPerPage);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.classList.add('px-4', 'py-2', 'm-1', 'border', 'border-gray-300', 'rounded', 'bg-white', 'hover:bg-gray-100', 'transition');
+                if (i === currentPage) {
+                    button.classList.add('bg-green-600', 'text-black');
+                }
+                button.addEventListener('click', () => {
+                    currentPage = i;
+                    updateTable();
+                    updatePagination();
+                });
+                pagination.appendChild(button);
+            }
+        }
+
+        function changeRowsPerPage() {
+            rowsPerPage = parseInt(document.getElementById('rowsPerPage').value, 10);
+            currentPage = 1; // Reset to the first page
+            updateTable();
+            updatePagination();
+        }
+    </script>
+
+</body>
+</html>
