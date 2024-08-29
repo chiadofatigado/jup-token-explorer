@@ -1,6 +1,6 @@
 # Jupiter Token API Explorer
 
-A web application for exploring tokens on the Jupiter network.
+A web application for exploring tokens on the Jupiter token api list.
 
 ## Features
 
