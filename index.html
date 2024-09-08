@@ -35,7 +35,7 @@
         </div>
 
         <!-- Pagination and Rows Selector -->
-        <div class="pagination text-center mt-4" id="pagination"></div>
+        <div id="pagination" class="flex justify-center mt-4"></div>
         
         <div class="rows-selector text-center mt-4">
             <label for="rowsPerPage" class="text-gray-700">Rows per page:</label>
@@ -56,7 +56,7 @@
         let allTokens = [];
         let currentPage = 1;
         let rowsPerPage = 100;
-
+    
         // Function to handle tag button click
         document.querySelectorAll('.tag-button').forEach(button => {
             button.addEventListener('click', function() {
@@ -64,17 +64,17 @@
                 this.classList.toggle('text-white');
             });
         });
-
+    
         function fetchTokens() {
             const selectedTags = Array.from(document.querySelectorAll('.tag-button.bg-green-600'))
                 .map(button => button.getAttribute('data-tag'))
                 .join(',');
-
+    
             if (selectedTags.length === 0) {
                 alert("Please select at least one tag.");
                 return;
             }
-
+    
             const url = `https://tokens.jup.ag/tokens?tags=${selectedTags}`;
             
             fetch(url)
@@ -88,28 +88,20 @@
                     allTokens = data; // Store the complete data
                     console.log('Data received:', data); // Debug: log the response data
                     currentPage = 1; // Reset to the first page
-                    updateTable(); // Display tokens for the first page
-                    updatePagination(); // Update pagination
+                    displayTokens(); // Display tokens for the first page
                 })
                 .catch(error => {
                     console.error('Error fetching data:', error);
                     document.getElementById('error-message').textContent = 'Error fetching data. Please try again later.';
                 });
         }
-
-        function updateTable() {
-            const tokenResults = document.getElementById('token-results');
-            tokenResults.innerHTML = ''; // Clear previous results
-
+        
+        function displayTokens(page = 1) {
+            currentPage = page;
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage;
             const tokensToDisplay = allTokens.slice(start, end);
-
-            if (tokensToDisplay.length === 0) {
-                tokenResults.innerHTML = '<p class="text-center text-gray-700">No tokens found for the selected tags.</p>';
-                return;
-            }
-
+        
             let table = `
                 <table class="min-w-full bg-white border border-gray-300">
                     <thead>
@@ -125,12 +117,12 @@
                     </thead>
                     <tbody>
             `;
-
+        
             tokensToDisplay.forEach((token, index) => {
                 table += `
                     <tr class="hover:bg-gray-100">
                         <td class="px-4 py-2 border-b text-center">${start + index + 1}</td>
-                        <td class="px-4 py-2 border-b text-center"><img src="${token.logoURI || ''}" alt="${token.name} logo" class="token-logo w-8 h-8"></td>
+                        <td class="px-4 py-2 border-b text-center"><img src="https://wsrv.nl/?url=${token.logoURI || ''}&maxage=1d" alt="${token.name} logo" class="token-logo w-8 h-8"></td>
                         <td class="px-4 py-2 border-b text-center">${token.name || 'N/A'}</td>
                         <td class="px-4 py-2 border-b text-center">${token.symbol || 'N/A'}</td>
                         <td class="px-4 py-2 border-b text-center">${token.address || 'N/A'}</td>
@@ -139,42 +131,95 @@
                     </tr>
                 `;
             });
-
+        
             table += '</tbody></table>';
-            tokenResults.innerHTML = table;
-
+            document.getElementById('token-results').innerHTML = table;
+        
             // Update total number of tokens
             document.getElementById('total-tokens').textContent = `Total Tokens: ${allTokens.length}`;
-        }
-
-        function updatePagination() {
-            const pagination = document.getElementById('pagination');
-            pagination.innerHTML = ''; // Clear previous pagination
-
+        
+            // Update pagination
             const totalPages = Math.ceil(allTokens.length / rowsPerPage);
-
-            for (let i = 1; i <= totalPages; i++) {
+            updatePagination(currentPage, totalPages);
+        }
+    
+        function updatePagination(currentPage, totalPages) {
+            const paginationContainer = document.getElementById('pagination');
+            paginationContainer.innerHTML = '';
+    
+            const createButton = (text, page) => {
                 const button = document.createElement('button');
-                button.textContent = i;
-                button.classList.add('px-4', 'py-2', 'm-1', 'border', 'border-gray-300', 'rounded', 'bg-white', 'hover:bg-gray-100', 'transition');
+                button.textContent = text;
+                button.className = 'px-3 py-1 mx-1 border rounded';
+                button.onclick = () => {
+                    displayTokens(page);
+                };
+                return button;
+            };
+    
+            if (currentPage > 1) {
+                paginationContainer.appendChild(createButton('First', 1));
+                paginationContainer.appendChild(createButton('Previous', currentPage - 1));
+            }
+    
+            // First three pages
+            for (let i = 1; i <= Math.min(3, totalPages); i++) {
+                const button = createButton(i, i);
                 if (i === currentPage) {
-                    button.classList.add('bg-green-600', 'text-black');
+                    button.classList.add('bg-gray-300');
                 }
-                button.addEventListener('click', () => {
-                    currentPage = i;
-                    updateTable();
-                    updatePagination();
-                });
-                pagination.appendChild(button);
+                paginationContainer.appendChild(button);
+            }
+    
+            // Ellipsis if needed
+            if (currentPage > 5) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.className = 'px-3 py-1 mx-1';
+                paginationContainer.appendChild(ellipsis);
+            }
+    
+            // Pages around the current page
+            for (let i = Math.max(4, currentPage - 2); i <= Math.min(totalPages - 3, currentPage + 2); i++) {
+                const button = createButton(i, i);
+                if (i === currentPage) {
+                    button.classList.add('bg-gray-300');
+                }
+                paginationContainer.appendChild(button);
+            }
+    
+            // Ellipsis if needed
+            if (currentPage < totalPages - 4) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.className = 'px-3 py-1 mx-1';
+                paginationContainer.appendChild(ellipsis);
+            }
+    
+            // Last three pages
+            for (let i = Math.max(totalPages - 2, 4); i <= totalPages; i++) {
+                const button = createButton(i, i);
+                if (i === currentPage) {
+                    button.classList.add('bg-gray-300');
+                }
+                paginationContainer.appendChild(button);
+            }
+    
+            if (currentPage < totalPages) {
+                paginationContainer.appendChild(createButton('Next', currentPage + 1));
+                paginationContainer.appendChild(createButton('Last', totalPages));
             }
         }
-
+    
         function changeRowsPerPage() {
             rowsPerPage = parseInt(document.getElementById('rowsPerPage').value, 10);
             currentPage = 1; // Reset to the first page
-            updateTable();
-            updatePagination();
+            displayTokens();
         }
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            displayTokens();
+        });
     </script>
 
 </body>
